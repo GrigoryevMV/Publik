@@ -1,0 +1,24 @@
+select
+	tb.month,
+	tb2.payment_id,
+	tb2.payment_date,
+	tb2.amount,
+	tb.month_sum
+from (
+	select
+		extract(YEAR from payment_date::date ) || '-' || extract(month from payment_date::date ) as month,    
+		sum(amount) as month_sum  
+	from payments	
+	where payment_date >= '2021-01-01 00:00:00'	
+	group by extract(YEAR from payment_date::date ), extract(month from payment_date::date)
+) tb 
+left join ( 
+	select
+		row_number() OVER(PARTITION BY extract(YEAR from payment_date::date ) || '-' || extract(month from payment_date::date ) ORDER BY amount desc) as num,	
+		payment_id, 
+		payment_date, 
+		amount
+	from payments
+) tb2 on payment_date >= (month || '-01')::date and payment_date < (month || '-01')::date + INTERVAL '1 MONTH'
+	and num <= (select (count(*)*0.05)::int from payments where payment_date >= (month || '-01')::date and payment_date < (month || '-01')::date + INTERVAL '1 MONTH' )   
+order by tb.month desc, tb2.amount desc
